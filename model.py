@@ -2,6 +2,7 @@ import numpy as np
 import random as rd
 from scipy import spatial
 from itertools import chain, combinations
+from copy import deepcopy
 
 
 def powerset(iterable):
@@ -189,6 +190,7 @@ def rate_coalitions(coalitions, agendas, poll_results, expected_outcomes, breaki
     :param type: method of calculation. 1: all issues weight equal 2: breaking points are weighted heavier
     :return: a list of coalition ratings based on the number of agreeing issues in the agendas of their members 
     """
+    I = len(expected_outcomes)
     ratings = np.zeros(len(coalitions))
 
     for c_index, coalition in enumerate(coalitions):
@@ -199,7 +201,7 @@ def rate_coalitions(coalitions, agendas, poll_results, expected_outcomes, breaki
         # Case 1: All issues weight equal
         if type == 1:
             for a in coalition_agendas:
-                similarity += 2 - spatial.distance.cosine(expected_outcome, a)
+                similarity += I - np.sum(np.absolute(np.subtract(expected_outcome, a)))
         # Case 2: Rate breaking point issues heavier
         else:
             # TODO
@@ -230,6 +232,7 @@ def simulate_vote(agendas, electorate, type=1, special_interest=None):
     assert I == len(electorate[0]), "Number of issues of candidates and voters do not match!"
 
     for preference in electorate:
+        # print("Preference is {}".format(preference))
         best_vote = None
         best_score = 0
         for p, agenda in enumerate(agendas):
@@ -248,6 +251,7 @@ def simulate_vote(agendas, electorate, type=1, special_interest=None):
             best_vote = rd.randint(0, X)
 
         votes[best_vote] += 1
+        # print("Best match is {} with an agreement of {}".format(agendas[best_vote], best_score))
 
     return votes / N
 
@@ -278,33 +282,40 @@ def form_policiy(coalition, agendas, vote_results, outcome_probs):
     :return: 
     """
     open_issues = []
+    policy = deepcopy(outcome_probs)
+    print(policy)
+
     for i, prob in enumerate(outcome_probs):
         if prob != 0 and prob != 1:
             open_issues.append(i)
 
-    print("{} open issues". format(len(open_issues)))
+    # print("{} open issues". format(len(open_issues)))
     if len(open_issues) == 0:
-        return outcome_probs
+        return policy
     else:
         candidate_issues = {}
         for i, candidate in enumerate(coalition):
             candidate_issues[i] = int(vote_results[candidate] * len(open_issues))
 
-        print("{} issues are divided based on the vote weights".format(np.sum(list(candidate_issues.values()))))
+        # print("{} issues are divided based on the vote weights".format(np.sum(list(candidate_issues.values()))))
         for candidate, no_issues in candidate_issues.items():
             for _ in range(no_issues):
                 open_issue = open_issues.pop()
-                outcome_probs[open_issue] = agendas[candidate][open_issue]
+                policy[open_issue] = agendas[candidate][open_issue]
+
 
         if len(open_issues) == 0:
-            return outcome_probs
+            return policy
         else:
-            print("{} remaining issues decided by weighted coin toss".format(len(open_issues)))
+            # print("{} remaining issues decided by weighted coin toss".format(len(open_issues)))
             spectrum = np.cumsum([vote_results[candidate] for candidate in coalition])
+            spectrum = spectrum/np.max(spectrum)
+            print(spectrum)
             for open_issue in open_issues:
                 index = np.random.random_sample()
                 for i, c in enumerate(spectrum):
                     if index <= c:
-                        outcome_probs[open_issue] = agendas[coalition[i]][open_issue]
+                        policy[open_issue] = agendas[coalition[i]][open_issue]
 
-            return outcome_probs
+
+            return policy
