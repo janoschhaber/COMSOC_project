@@ -313,6 +313,60 @@ def rate_coalitions(coalitions, agendas, poll_results, expected_outcomes, breaki
 
     return ratings
 
+def revaluate_votes(agendas, profile, supporters, vote_results, breaking_points):
+    """
+       Recalculates the votes assuming that if a breaking point doesnt coincide with
+       the suporters value it will change to the one that does and preferably the one closest
+       to him. If there is none that does then the voter's vote remains in the current party.
+       :param agendas: agendas of the candidates
+       :param profle: preferences of the voters
+       :param vote_results: current votes
+       :param breaking_points: list of breaking points implemented
+       :return:
+       """
+    for party, b_point in enumerate(breaking_points):
+        if len(b_point) >0:
+            change_party=[]
+            #TODO model when there are more than one breaking point per party
+            issue = b_point[0]
+            for supporter in supporters:
+                if profile[supporter][issue]!=agendas[party][issue]:
+                    # try to change vote
+                    change_party.append(supporter)
+            vote_results = change_votes(change_party, party, profile, agendas,vote_results,len(profile))
+    return vote_results
+
+
+
+def change_votes(change_party, party, profile, agendas, issue, vote_results,n):
+    #Get the possible changes
+    I = len(agendas[0])
+    vote_results = n * vote_results
+    #Assuming that there is only one breaking point per party, thus all supporters need the same thing, else move this inside loop
+    remaining_agendas = [p for p, x in enumerate(agendas) if x[issue] == profile[issue]]
+    remaining_agendas.remove(party)
+    for supporter in change_party:
+        best_vote = None
+        best_score = -I
+        for p in remaining_agendas:
+            disagreements = np.sum(np.absolute(np.subtract(profile, agendas[p])))
+            score = I - 2 * disagreements
+            if score > best_score:
+                best_vote = p
+                best_score = score
+        if best_vote != None:
+            # recalculate vote results
+            vote_results[party]-=1
+            vote_results[p] +=1
+    return vote_results/n
+
+
+
+
+
+
+
+
 
 def simulate_vote(agendas, electorate, type = 1, special_interest = None, breaking_points = None, potential_coalitions = None, likely_coalition = None):
     """
@@ -329,11 +383,14 @@ def simulate_vote(agendas, electorate, type = 1, special_interest = None, breaki
     votes = np.zeros(X)
     wasted_votes = 0
 
+    # Initialise list of supporters
+    supporters = [[] for _ in range(len(agendas))]
+
     # print("Likely coalition: ", likely_coalition)
 
     assert I == len(electorate[0]), "Number of issues of candidates and voters do not match!"
 
-    for preference in electorate:
+    for voter, preference in enumerate(electorate):
         # print("Preference is {}".format(preference))
         best_vote = None
         best_score = -I
@@ -386,11 +443,12 @@ def simulate_vote(agendas, electorate, type = 1, special_interest = None, breaki
                 best_vote = rd.randint(0, X)
 
         votes[best_vote] += 1
+        supporters[best_vote].append(voter)
         # print("Best match is {} with an agreement of {}".format(agendas[best_vote], best_score))
 
     # print("{} votes potentially wasted on non-coalition parties.".format(wasted_votes))
 
-    return votes / N
+    return votes / N, supporters
 
 
 def form_coalition(ratings):

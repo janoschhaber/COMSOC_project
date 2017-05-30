@@ -26,7 +26,7 @@ def main():
         agendas = generate_profile(I, X)
         profile = generate_relative_profile(N, agendas, poll_results)
 
-        vote_results = simulate_vote(agendas, profile, 1)
+        vote_results, _ = simulate_vote(agendas, profile, 1)
         # print("Poll results: {}, vote results: {}".format(poll_results, vote_results))
 
         breaking_points = generate_breakingpoints(X, I, B)
@@ -61,7 +61,7 @@ def main():
         # print("Total regret is {}, with mean {}, max of {} and min of {}. Std is {}".format(np.sum(regrets), np.mean(regrets), np.max(regrets), np.min(regrets), np.std(regrets)))
         grid_results.append([np.mean(regrets), np.max(regrets), np.min(regrets), np.std(regrets)])
 
-        print(i, end='\r')
+      #  print(i, end='\r')
 
     # profile = generate_profile(I, N)
     # # print("profile generated {} preference lists".format(len(profile)))

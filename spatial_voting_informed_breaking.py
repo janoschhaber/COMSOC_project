@@ -10,6 +10,7 @@ import pickle
 
 print_model = True
 print_analysis = True
+revaluate = True
 
 
 # In[8]:
@@ -33,7 +34,7 @@ def main():
     agendas = generate_agendas(I, X)
     profile = generate_relative_profile(N, agendas, poll_results)
 
-    vote_results = simulate_vote(agendas, profile, 1)
+    vote_results, vote_supporters = simulate_vote(agendas, profile, 1)
 
     supporters = divide_electorate(profile, agendas)
     keys = list(supporters.keys())
@@ -45,6 +46,8 @@ def main():
     else: breaking_points = derive_breaking_points(B, supporters, agendas)
 
     print("Breaking points: ", breaking_points)
+    if revaluate==True:
+        vote_results= revaluate_votes(agendas, profile, vote_supporters, vote_results, breaking_points)
 
     possible_coalitions = generate_coalitions(vote_results, agendas, breaking_points)
     if len(possible_coalitions) == 0:
