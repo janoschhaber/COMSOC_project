@@ -28,25 +28,27 @@ def calculate_entropy(expected_outcomes):
     return np.sum(entropy)/len(expected_outcomes)
 
 
-def calculate_regret(policy, profile, type=1):
+def calculate_regret(policy, profile, type=2):
     """
     Returns a vector of voter regret calculated through a specified method
     :param policy: the implemented policy
     :param profile: the profile of the electorate
-    :param type: the calculation method. 1: manhattan distance, 2: cosine similarity, 3: bayesian regret
+    :param type: the calculation method. 1: manhattan distance, 2: absolute difference, 3: bayesian regret
     :return:  a vector of voter regret calculated through a specified method
     """
     regrets = np.zeros(len(profile))
+    I = len(policy)
 
     # Case 1: Mahattan distance
     if type == 1:
         for i, voter in enumerate(profile):
-            regrets[i] = np.sum(np.absolute(np.subtract(voter, policy)))
+            regrets[i] = np.sum(np.absolute(np.subtract(voter, policy)))/I
 
     # Case 2: Cosine similarity
     if type == 2:
         for i, voter in enumerate(profile):
-            regrets[i] = spatial.distance.cosine(voter, policy)
+            disagreements = np.sum(np.absolute(np.subtract(voter, policy)))
+            regrets[i] = (I-2*disagreements) / I
 
     # Case 3: Bayesian regret
     if type == 3:
