@@ -169,12 +169,14 @@ def is_closest(preference, candidate, agendas):
 
 def swap_one(preference, agenda):
     """
-    Swaps one issue in a preference vector to move the preference closer towards a specified agenda
+    Swaps one random issue in a preference vector to move the preference closer towards a specified agenda
     :param preference: the initial voter preference 
     :param agenda: the goal agenda
     :return: the preference vector with one element swapped
     """
-    for i, p in enumerate(preference):
+    indexes = np.random.permutation(len(preference))
+    for i in indexes:
+        p = preference[i]
         if p != agenda[i]:
             preference[i] = agenda[i]
             return preference
@@ -409,12 +411,12 @@ def form_coalition(ratings):
 
 def form_policiy(coalition, agendas, vote_results, outcome_probs):
     """
-    
-    :param coalition: 
-    :param agendas: 
-    :param vote_results: 
-    :param outcome_probs: 
-    :return: 
+    Determines a policy based on the coalition formed and the agendas of its members
+    :param coalition: the coalition that was formed 
+    :param agendas: the agendas of the coalition partners
+    :param vote_results: the results of the vote
+    :param outcome_probs: the outcome probabilities as expected based on the vote
+    :return: the policy to be implemented by the coalition
     """
     open_issues = []
     policy = deepcopy(outcome_probs)
@@ -457,6 +459,12 @@ def form_policiy(coalition, agendas, vote_results, outcome_probs):
 
 
 def divide_electorate(electorate, agendas):
+    """
+    Divides the electorate into supporter groups of the different candidates
+    :param electorate: the electorate
+    :param agendas: the agendas of the candidates
+    :return: a list of supporting preferences for each of the candidates
+    """
     X = len(agendas)
     I = len(agendas[0])
     support = defaultdict(list)
@@ -482,25 +490,47 @@ def divide_electorate(electorate, agendas):
 
 
 def derive_breaking_points(B, supporters, agendas):
-
-    if B == 0:
-        breaking_points = [None] * len(supporters)
-
+    """
+    Derives a candidate's breaking point(s) from the mean voter's profile
+    :param B: the number of breaking points to be stated
+    :param supporters: the preferences of the voters that voted for a given candidate
+    :param agendas: the agendas of the different candidates
+    :return: a list of breaking point issue indexes per candidate
+    """
     I = len(supporters[0][0])
     assert B <= I, "Breaking point error: Specified more breaking points than issues"
     breaking_points = [None] * len(supporters)
 
+    if B == 0:
+        return breaking_points
+
     one_vector = np.ones(I)
-    for i, c_sup in supporters.items():
+    for c, c_sup in supporters.items():
         mean_vote = np.mean(c_sup, axis=0)
-        print("Party agenda: {}, Mean vote: {}".format(agendas[i], mean_vote))
+
+        median_vote = np.around(mean_vote)
+
+        # print("Party agenda: {}, Mean vote: {}".format(agendas[c], mean_vote))
         distance_from_one = np.subtract(one_vector, mean_vote)
         agreement_vector = np.minimum(mean_vote, distance_from_one)
         # print("Agreement vector: ", agreement_vector)
         sorted_agreement = np.argsort(agreement_vector)
         # TODO: Introduce some exponential decaying randomness
-        breaking_points[i] = sorted_agreement[:B]
-        print("Breaking points: ", breaking_points[i])
-        for b in breaking_points[i]:
-            if agendas[i][b] == 1 and mean_vote[b] < 0.5:  print("Mean voter does not agree with party line on breaking point issue")
+        c_breaking_points = [None] * B
+        remaining_indexes = [n for n in range(I)]
+        for b in range(B):
+            # print("Remaining set of indexes: {}".format(remaining_indexes))
+            is_set = False
+            for i in remaining_indexes:
+                if agendas[c][i] == median_vote[i]:
+                    c_breaking_points[b] = sorted_agreement[i]
+                    remaining_indexes = np.delete(remaining_indexes, i)
+                    is_set = True
+                    break
+            if not is_set:
+                c_breaking_points[b] = sorted_agreement[i]
+                remaining_indexes = np.delete(remaining_indexes, i)
+
+        # print("Sorted agreement is {}, breaking points are set on {}".format(sorted_agreement, c_breaking_points))
+        breaking_points[c] = c_breaking_points
     return breaking_points

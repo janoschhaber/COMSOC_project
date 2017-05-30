@@ -47,6 +47,8 @@ def main():
     print("Breaking points: ", breaking_points)
 
     possible_coalitions = generate_coalitions(vote_results, agendas, breaking_points)
+    if len(possible_coalitions) == 0:
+        return
 
     expected_outcomes = simulate_outcomes(vote_results, possible_coalitions, agendas, breaking_points)
     ratings = rate_coalitions(possible_coalitions, agendas, vote_results, expected_outcomes, breaking_points)
