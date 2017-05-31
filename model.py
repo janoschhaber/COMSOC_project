@@ -540,7 +540,7 @@ def divide_electorate(electorate, agendas):
     return support
 
 
-def derive_breaking_points(B, supporters, agendas):
+def derive_breaking_points(B, supporters, agendas, cutoff=False):
     """
     Derives a candidate's breaking point(s) from the mean voter's profile
     :param B: the number of breaking points to be stated
@@ -550,7 +550,8 @@ def derive_breaking_points(B, supporters, agendas):
     """
     I = len(supporters[0][0])
     assert B <= I, "Breaking point error: Specified more breaking points than issues"
-    breaking_points = [None] * len(supporters)
+    X = len(supporters)
+    breaking_points = [None] * X
 
     if B == 0:
         return breaking_points
@@ -584,4 +585,14 @@ def derive_breaking_points(B, supporters, agendas):
 
         # print("Sorted agreement is {}, breaking points are set on {}".format(sorted_agreement, c_breaking_points))
         breaking_points[c] = c_breaking_points
+
+    if cutoff and B == 1:
+        breaking_points_one = [None] * X
+        breaking_points_one[0] = breaking_points[0]
+        breaking_points = breaking_points_one
+    elif cutoff and B == 1:
+        breaking_points_one = [None] * X
+        breaking_points_one[:1] = breaking_points[:1]
+        breaking_points = breaking_points_one
+
     return breaking_points

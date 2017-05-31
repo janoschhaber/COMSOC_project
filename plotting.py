@@ -65,7 +65,7 @@ def plot_bar_chart(df):
     plt.grid()
     plt.show()
 
-def plot_bar_chart_regret(df, labels):
+def plot_bar_chart_regret(df, title, xlabel, xticklabels, ylabel, legend, colours, name):
     # Setting the positions and width for the bars
     pos = list(range(len(df[0])))
     width = 0.33
@@ -83,7 +83,7 @@ def plot_bar_chart_regret(df, labels):
             # with alpha 0.5
             alpha=0.5,
             # with color
-            color='#F78F1E',
+            color=colours[0],
             # with label the first value in first_name
             label="before")
 
@@ -97,31 +97,32 @@ def plot_bar_chart_regret(df, labels):
             # with alpha 0.5
             alpha=0.5,
             # with color
-            color='#EE3224',
+            color=colours[1],
             # with label the second value in first_name
             label="after")
 
     # Set the y axis label
-    ax.set_ylabel('')
+    ax.set_ylabel(ylabel)
+    ax.set_xlabel(xlabel)
 
     # Set the chart's title
-    ax.set_title('Average Normalized Voter Agreement')
+    ax.set_title(title)
 
     # Set the position of the x ticks
     ax.set_xticks([p + 0.5 * width for p in pos])
 
     # labels = ["{} bps".format(x) for x in range(10)]
     # Set the labels for the x ticks
-    ax.set_xticklabels(labels)
+    ax.set_xticklabels(xticklabels)
 
     # Setting the x-axis and y-axis limits
     plt.xlim(min(pos) - width, max(pos) + width * 4)
     # plt.ylim([0, max(df['pre_score'] + df['mid_score'] + df['post_score'])])
 
     # Adding the legend and showing the plot
-    plt.legend(['Rate of agreement with implemented policy', 'Standard deviation'], loc='upper center',
-               bbox_to_anchor=(0.5, -0.05),
+    plt.legend(legend, loc='upper center',
+               bbox_to_anchor=(0.5, -0.095),
                fancybox=False, shadow=False, ncol=5)
     plt.grid()
-    plt.savefig('graph_1.png', dpi=200)
+    plt.savefig(name, dpi=200)
     plt.show()

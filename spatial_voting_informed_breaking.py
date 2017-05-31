@@ -58,7 +58,8 @@ def main():
     ratings = rate_coalitions(possible_coalitions, agendas, vote_results, expected_outcomes, breaking_points)
     final_expected_outcomes = np.sum([expected_outcomes[c] * ratings[c] for c in range(len(possible_coalitions))],
                                      axis=0)
-    # if print_model: print("Final Expected Outcomes:\n{}".format(final_expected_outcomes))
+    print("Final Expected Outcomes:\n{}".format(final_expected_outcomes))
+
     coalition_ID = form_coalition(ratings)
     # print(coalition_ID)
 

@@ -42,7 +42,7 @@ def calculate_regret(policy, profile, type=2):
     # Case 1: Mahattan distance
     if type == 1:
         for i, voter in enumerate(profile):
-            regrets[i] = np.sum(np.absolute(np.subtract(voter, policy)))/I
+            regrets[i] = (I - np.sum(np.absolute(np.subtract(voter, policy))))/I
 
     # Case 2: Cosine similarity
     if type == 2:
