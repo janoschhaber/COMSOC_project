@@ -76,7 +76,6 @@ def main():
 
     regrets = calculate_regret(policy, profile, 2)
 
-
 if __name__ == "__main__":
     main()
 

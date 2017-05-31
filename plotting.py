@@ -3,6 +3,8 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib import pylab
+
 
 def plot_bar_chart(df):
     # Setting the positions and width for the bars
@@ -63,7 +65,7 @@ def plot_bar_chart(df):
     plt.grid()
     plt.show()
 
-def plot_bar_chart_regret(df):
+def plot_bar_chart_regret(df, labels):
     # Setting the positions and width for the bars
     pos = list(range(len(df[0])))
     width = 0.33
@@ -103,12 +105,12 @@ def plot_bar_chart_regret(df):
     ax.set_ylabel('')
 
     # Set the chart's title
-    ax.set_title('Average voter agreement')
+    ax.set_title('Average Normalized Voter Agreement')
 
     # Set the position of the x ticks
     ax.set_xticks([p + 0.5 * width for p in pos])
 
-    labels = ["{} bps".format(x) for x in range(10)]
+    # labels = ["{} bps".format(x) for x in range(10)]
     # Set the labels for the x ticks
     ax.set_xticklabels(labels)
 
@@ -121,4 +123,5 @@ def plot_bar_chart_regret(df):
                bbox_to_anchor=(0.5, -0.05),
                fancybox=False, shadow=False, ncol=5)
     plt.grid()
+    plt.savefig('graph_1.png', dpi=200)
     plt.show()
