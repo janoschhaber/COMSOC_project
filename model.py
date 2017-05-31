@@ -246,7 +246,7 @@ def generate_coalitions(poll_results, agendas, breaking_points):
 def simulate_outcomes(poll_results, coalitions, agendas, breaking_points):
     """
     Weights the possible coalitions by the results of the poll to generate expected outcomes
-    :param poll_results: results from the pull (relative weights of the candidates)
+    :param poll_results: results from the poll (relative weights of the candidates)
     :param coalitions: all possible coalitions
     :param agendas: agendas of the candidates
     :param breaking_points: breaking points specified by the candidates
@@ -329,11 +329,12 @@ def revaluate_votes(agendas, profile, supporters, vote_results, breaking_points)
             change_party=[]
             #TODO model when there are more than one breaking point per party
             issue = b_point[0]
-            for supporter in supporters:
+            for supporter in supporters[party]:
                 if profile[supporter][issue]!=agendas[party][issue]:
                     # try to change vote
                     change_party.append(supporter)
-            vote_results = change_votes(change_party, party, profile, agendas,vote_results,len(profile))
+            if len(change_party) > 0:
+                vote_results = change_votes(change_party, party, profile, agendas, issue, vote_results, len(profile))
     return vote_results
 
 
@@ -343,13 +344,12 @@ def change_votes(change_party, party, profile, agendas, issue, vote_results,n):
     I = len(agendas[0])
     vote_results = n * vote_results
     #Assuming that there is only one breaking point per party, thus all supporters need the same thing, else move this inside loop
-    remaining_agendas = [p for p, x in enumerate(agendas) if x[issue] == profile[issue]]
-    remaining_agendas.remove(party)
+    remaining_agendas = [p for p, x in enumerate(agendas) if x[issue] == profile[change_party[0]][issue]]
     for supporter in change_party:
         best_vote = None
         best_score = -I
         for p in remaining_agendas:
-            disagreements = np.sum(np.absolute(np.subtract(profile, agendas[p])))
+            disagreements = np.sum(np.absolute(np.subtract(profile[supporter], agendas[p])))
             score = I - 2 * disagreements
             if score > best_score:
                 best_vote = p
@@ -359,13 +359,6 @@ def change_votes(change_party, party, profile, agendas, issue, vote_results,n):
             vote_results[party]-=1
             vote_results[p] +=1
     return vote_results/n
-
-
-
-
-
-
-
 
 
 def simulate_vote(agendas, electorate, type = 1, special_interest = None, breaking_points = None, potential_coalitions = None, likely_coalition = None):
