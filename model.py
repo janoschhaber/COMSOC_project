@@ -325,7 +325,7 @@ def revaluate_votes(agendas, profile, supporters, vote_results, breaking_points)
        :return:
        """
     for party, b_point in enumerate(breaking_points):
-        if len(b_point) >0:
+        if b_point!=None:
             change_party=[]
             #TODO model when there are more than one breaking point per party
             issue = b_point[0]
