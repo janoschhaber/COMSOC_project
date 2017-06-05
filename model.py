@@ -1,9 +1,9 @@
 import numpy as np
 import random as rd
-from scipy import spatial
 from itertools import chain, combinations
 from copy import deepcopy
 from collections import defaultdict
+import math
 
 
 def powerset(iterable):
@@ -14,6 +14,16 @@ def powerset(iterable):
     """
     s = list(iterable)
     return chain.from_iterable(combinations(s, r) for r in range(len(s) + 1))
+
+
+def get_supporter_IDs(supporters, X):
+    supporter_IDs = [None] * X
+    first_ID = 0
+    for i, x_supp in enumerate(supporters):
+        IDs = [first_ID + i for i in range(len(x_supp))]
+        supporter_IDs[i] = IDs
+        first_ID += len(x_supp)
+    return supporter_IDs
 
 
 def simulate_poll(X, N, type=1, weightings=None):
@@ -109,27 +119,29 @@ def generate_relative_profile(N, agendas, weights):
     :param N: number of preferences (size of the profile)
     :param agendas: the agendas of the candidates
     :param weights: the relative weights of each of the candidates in the election
-    :return: matrix of NxI preferences
+    :return: list of Nx preferences over I issues for all candidates x in X
     """
     assert len(agendas) == len(weights), "Profile generation error: Candidate weight vector inconsistent"
     assert sum(weights) > 0.95, "Profile generation error: Weights are underspecified"
     assert sum(weights) < 1.05, "Profile generation error: Weights sum up to more than 1"
 
     votes = [int(N*w) for w in weights]
-    profile = []
-
+    profile = [[] for i in range(len(agendas))]
     I = len(agendas[0])
+    no_generated = 0
+
     for i, a in enumerate(agendas):
         for _ in range(votes[i]):
             preference = np.random.choice([0, 1], size=(I,), p=[0.5, 0.5])
             while not is_closest(preference, i, agendas):
                 preference = swap_one(preference, a)
-            profile.append(preference)
+            profile[i].append(preference)
+            no_generated += 1
 
-    if len(profile) != N:
-        print("{} remaining preferences generated randomly.".format(N-len(profile)))
-        for _ in range(N-len(profile)):
-            profile.append(np.random.choice([0, 1], size=(I,), p=[0.5, 0.5]))
+    if no_generated != N:
+        # print("{} remaining preferences generated randomly.".format(N-no_generated))
+        for _ in range(N-no_generated):
+            profile[i].append(np.random.choice([0, 1], size=(I,), p=[0.5, 0.5]))
 
     return profile
 
@@ -285,7 +297,7 @@ def rate_coalitions(coalitions, agendas, poll_results, expected_outcomes, breaki
     :param type: method of calculation. 1: all issues weight equal 2: breaking points are weighted heavier
     :return: a list of coalition ratings based on the number of agreeing issues in the agendas of their members 
     """
-    I = len(expected_outcomes)
+    I = len(expected_outcomes[0])
     ratings = np.zeros(len(coalitions))
 
     for c_index, coalition in enumerate(coalitions):
@@ -293,22 +305,26 @@ def rate_coalitions(coalitions, agendas, poll_results, expected_outcomes, breaki
         coalition_agendas = [np.multiply(agendas[c], poll_results[c]) for c in coalition]
         similarity = 0
 
-        # Case 1: Simple distance
-        if type == 1:
-            for a in coalition_agendas:
-                similarity += I - np.sum(np.absolute(np.subtract(expected_outcome, a)))
-        # Case 2: Absolute difference
-        elif type == 2:
-            disagreements = np.sum(np.absolute(np.subtract(expected_outcome, a)))
-            similarity += I - 2 * disagreements
-        # Case 3: Breaking points are weighted heavier
-        else:
-            # TODO
-            pass
+        for a in coalition_agendas:
+            # Case 1: Simple distance
+            if type == 1:
+                # print("Agenda: {}, expected_outcome: {}, similiarity: {}".format(a, expected_outcome, (I - np.sum(np.absolute(np.subtract(expected_outcome, a)))) / I))
+                similarity += (I - np.sum(np.absolute(np.subtract(expected_outcome, a)))) / I
+            # Case 2: Absolute difference
+            elif type == 2:
+                disagreements = np.sum(np.absolute(np.subtract(expected_outcome, a)))
+                similarity += I - 2 * disagreements
+            # Case 3: Breaking points are weighted heavier
+            else:
+                # TODO
+                pass
 
-        ratings[c_index] = similarity / (len(coalition)*2)
+        ratings[c_index] = similarity / (len(coalition))
 
     r_sum = np.sum(ratings)
+    if r_sum == 0:
+        print(coalitions, agendas, breaking_points, expected_outcomes[0], coalition_agendas)
+        r_sum = 1
     ratings = ratings/r_sum
 
     return ratings
@@ -361,7 +377,7 @@ def change_votes(change_party, party, profile, agendas, issue, vote_results,n):
     return vote_results/n
 
 
-def simulate_vote(agendas, electorate, type = 1, special_interest = None, breaking_points = None, potential_coalitions = None, likely_coalition = None):
+def simulate_vote(agendas, electorate):
     """
     Simulates a non-manipulated vote based on the parties' agendas and voters' preferences. 
     :param agendas: agendas of the candidates
@@ -376,9 +392,6 @@ def simulate_vote(agendas, electorate, type = 1, special_interest = None, breaki
     votes = np.zeros(X)
     wasted_votes = 0
 
-    # Initialise list of supporters
-    supporters = [[] for _ in range(len(agendas))]
-
     # print("Likely coalition: ", likely_coalition)
 
     assert I == len(electorate[0]), "Number of issues of candidates and voters do not match!"
@@ -387,61 +400,19 @@ def simulate_vote(agendas, electorate, type = 1, special_interest = None, breaki
         # print("Preference is {}".format(preference))
         best_vote = None
         best_score = -I
-        wasted_vote = None
         for p, agenda in enumerate(agendas):
-            # Case 1: Voters have no special interest in issues
-            if type == 1:
-                disagreements = np.sum(np.absolute(np.subtract(preference, agenda)))
-                score = I - 2 * disagreements
-                if score > best_score:
-                    best_vote = p
-                    best_score = score
-            # Case 2: Voters have special interests in some issues
-            elif type == 2:
-                # TODO
-                pass
-            # Case 3: Strategic voting - consider potential coalitions
-            elif type == 3:
-                disagreements = np.sum(np.absolute(np.subtract(preference, agenda)))
-                score = I - 2 * disagreements
-                if score > best_score:
-                    if p in likely_coalition:
-                        # print("Preferred party is in likely coalition")
-                        best_vote = p
-                        best_score = score
-                        continue
-                    for c in potential_coalitions:
-                        if p in c:
-                            # print("Preferred party is in a possible coalition")
-                            best_vote = p
-                            best_score = score
-                            continue
-                    # print("Vote would be wasted")
-                    wasted_vote = p
-            # Case 4: Strategic voting with special interests
-            elif type == 4:
-                # TODO
-                pass
-            # Case 5: Strategic voting - determine highest derivative party
-            elif type == 5:
-                # TODO
-                pass
-
+            disagreements = np.sum(np.absolute(np.subtract(preference, agenda)))
+            score = I - 2 * disagreements
+            if score > best_score:
+                best_vote = p
+                best_score = score
 
         if best_vote is None:
-            if wasted_vote is not None:
-                wasted_votes += 1
-                best_vote = wasted_vote
-            else:
-                best_vote = rd.randint(0, X)
+            best_vote = rd.randint(0, X)
 
         votes[best_vote] += 1
-        supporters[best_vote].append(voter)
         # print("Best match is {} with an agreement of {}".format(agendas[best_vote], best_score))
-
-    # print("{} votes potentially wasted on non-coalition parties.".format(wasted_votes))
-
-    return votes / N, supporters
+    return votes / N
 
 
 def form_coalition(ratings):
@@ -540,7 +511,7 @@ def divide_electorate(electorate, agendas):
     return support
 
 
-def derive_breaking_points(B, supporters, agendas, cutoff=False):
+def derive_breaking_points(B, supporters, agendas):
     """
     Derives a candidate's breaking point(s) from the mean voter's profile
     :param B: the number of breaking points to be stated
@@ -554,45 +525,35 @@ def derive_breaking_points(B, supporters, agendas, cutoff=False):
     breaking_points = [None] * X
 
     if B == 0:
-        return breaking_points
+         return breaking_points
 
     one_vector = np.ones(I)
-    for c, c_sup in supporters.items():
-        mean_vote = np.mean(c_sup, axis=0)
+    for c, c_sup in enumerate(supporters):
 
-        median_vote = np.around(mean_vote)
+        if len(c_sup) == 0:
+            breaking_points[c] = rd.sample(range(I), B)
+        else:
+            mean_vote = np.mean(c_sup, axis=0)
+            median_vote = np.around(mean_vote)
 
-        # print("Party agenda: {}, Mean vote: {}".format(agendas[c], mean_vote))
-        distance_from_one = np.subtract(one_vector, mean_vote)
-        agreement_vector = np.minimum(mean_vote, distance_from_one)
-        # print("Agreement vector: ", agreement_vector)
-        sorted_agreement = np.argsort(agreement_vector)
-        # TODO: Introduce some exponential decaying randomness
-        c_breaking_points = [None] * B
-        remaining_indexes = [n for n in range(I)]
-        for b in range(B):
-            # print("Remaining set of indexes: {}".format(remaining_indexes))
-            is_set = False
-            for i in remaining_indexes:
-                if agendas[c][i] == median_vote[i]:
-                    c_breaking_points[b] = sorted_agreement[i]
-                    remaining_indexes = np.delete(remaining_indexes, i)
-                    is_set = True
-                    break
-            if not is_set:
-                c_breaking_points[b] = sorted_agreement[i]
-                remaining_indexes = np.delete(remaining_indexes, i)
+            # print("Party agenda: {}, Mean vote: {}".format(agendas[c], mean_vote))
+            distance_from_one = np.subtract(one_vector, mean_vote)
+            agreement_vector = np.minimum(mean_vote, distance_from_one)
+            # print("Agreement vector: ", agreement_vector)
+            sorted_agreement = np.argsort(agreement_vector)
+            # print("Sorted agreement: ", sorted_agreement)
+            # TODO: Introduce some exponential decaying randomness
+            c_breaking_points = []
+            agreement_intersection = [i for i in range(I) if agendas[c][i] == median_vote[i] ]
 
-        # print("Sorted agreement is {}, breaking points are set on {}".format(sorted_agreement, c_breaking_points))
-        breaking_points[c] = c_breaking_points
+            if len(agreement_intersection) >= B:
+                for priority_issue in sorted_agreement:
+                    if priority_issue in agreement_intersection:
+                        c_breaking_points.append(priority_issue)
+                    if len(c_breaking_points) == B: break
+            else:
+                print("WARNING: Setting more breaking points than agreement issues")
 
-    if cutoff and B == 1:
-        breaking_points_one = [None] * X
-        breaking_points_one[0] = breaking_points[0]
-        breaking_points = breaking_points_one
-    elif cutoff and B == 1:
-        breaking_points_one = [None] * X
-        breaking_points_one[:1] = breaking_points[:1]
-        breaking_points = breaking_points_one
-
+            # print("Sorted agreement is {}, breaking points are set on {}".format(sorted_agreement, c_breaking_points))
+            breaking_points[c] = c_breaking_points
     return breaking_points
